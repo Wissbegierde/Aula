@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "aula-inteligente",
+    "aula-inteligente": "aula-inteligente-30639"
+  },
+  "targets": {},
+  "etags": {}
+}

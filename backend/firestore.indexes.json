@@ -1,0 +1,30 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "access_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "classroom_id", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "sensor_readings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "classroom_id", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "alerts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "classroom_id", "order": "ASCENDING" },
+        { "fieldPath": "resolved", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

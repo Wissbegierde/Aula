@@ -1,0 +1,21 @@
+const SENSOR_THRESHOLDS = {
+  TEMPERATURE_HIGH: 38,
+  TEMPERATURE_CRITICAL: 42,
+  HUMIDITY_HIGH: 80,
+  HUMIDITY_LOW: 20,
+};
+
+const INACTIVITY_TIMEOUT_HOURS = 2;
+
+const ALERT_TYPES = {
+  SMOKE: 'smoke',
+  FLAME: 'flame',
+  HIGH_TEMP: 'high_temp',
+  HIGH_HUMIDITY: 'high_humidity',
+};
+
+module.exports = {
+  SENSOR_THRESHOLDS,
+  INACTIVITY_TIMEOUT_HOURS,
+  ALERT_TYPES,
+};
