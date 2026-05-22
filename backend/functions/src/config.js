@@ -8,12 +8,12 @@ const SENSOR_THRESHOLDS = {
 const INACTIVITY_TIMEOUT_HOURS = 2;
 
 const ALERT_TYPES = {
-  SMOKE: 'smoke',
-  HIGH_TEMP: 'high_temp',
-  HIGH_HUMIDITY: 'high_humidity',
+  SMOKE: "smoke",
+  HIGH_TEMP: "high_temp",
+  HIGH_HUMIDITY: "high_humidity",
 };
 
-const SENSOR_API_KEY = process.env.SENSOR_API_KEY || 'aula-sensor-key-2024';
+const SENSOR_API_KEY = process.env.SENSOR_API_KEY;
 
 module.exports = {
   SENSOR_THRESHOLDS,
