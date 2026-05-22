@@ -1,27 +1,55 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../../../core/constants/app_config.dart';
+import '../../../core/services/api_client.dart';
 import '../models/alert_model.dart';
 
 class AlertsProvider extends ChangeNotifier {
-  final List<AlertModel> _alerts = [];
+  final ApiClient _api;
+  List<AlertModel> _alerts = [];
   int _unreadCount = 0;
+  Timer? _timer;
 
   List<AlertModel> get alerts => List.unmodifiable(_alerts);
   int get unreadCount => _unreadCount;
   List<AlertModel> get activeAlerts => _alerts.where((a) => !a.isResolved).toList();
 
-  AlertsProvider() {
+  AlertsProvider(this._api) {
+    _fetchAlerts();
+    _timer = Timer.periodic(AppConfig.alertsPollInterval, (_) => _fetchAlerts());
+  }
+
+  Future<void> _fetchAlerts() async {
+    try {
+      final data = await _api.get(
+        '/alerts',
+        queryParams: {'classroom_id': AppConfig.classroomId},
+      );
+      final alertsList = data['alerts'] as List<dynamic>?;
+      if (alertsList != null) {
+        _alerts = alertsList
+            .map((a) => AlertModel.fromApi(a as Map<String, dynamic>))
+            .toList();
+        _unreadCount = _alerts.where((a) => !a.isResolved).length;
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      debugPrint('Error fetching alerts: $e');
+    }
     _generateMockAlerts();
   }
 
   void _generateMockAlerts() {
+    if (_alerts.isNotEmpty) return;
     final now = DateTime.now();
-    final mockAlerts = [
+    _alerts = [
       AlertModel(
         id: 'alert-001',
-        type: AlertType.co2,
+        type: AlertType.airQuality,
         severity: AlertSeverity.warning,
-        title: 'CO₂ elevado',
-        message: 'Nivel de CO₂ superó 1200 ppm. Se recomienda ventilar el aula.',
+        title: 'Calidad del aire baja',
+        message: 'Índice de calidad del aire elevado. Se recomienda ventilar el aula.',
         timestamp: now.subtract(const Duration(minutes: 15)),
         isResolved: false,
       ),
@@ -39,7 +67,7 @@ class AlertsProvider extends ChangeNotifier {
         type: AlertType.access,
         severity: AlertSeverity.warning,
         title: 'Acceso denegado',
-        message: 'Tarjeta RFID no autorizada detectada a las ${now.subtract(const Duration(hours: 2)).hour}:00.',
+        message: 'Tarjeta RFID no autorizada detectada.',
         timestamp: now.subtract(const Duration(hours: 2)),
         isResolved: true,
       ),
@@ -62,19 +90,41 @@ class AlertsProvider extends ChangeNotifier {
         isResolved: true,
       ),
     ];
-
-    _alerts.addAll(mockAlerts);
     _unreadCount = _alerts.where((a) => !a.isResolved).length;
+    notifyListeners();
   }
 
-  void addAlert(AlertModel alert) {
-    _alerts.insert(0, alert);
-    _unreadCount++;
-    notifyListeners();
+  Future<void> resolveAlert(String alertId) async {
+    try {
+      await _api.patch('/alerts/$alertId/resolve');
+    } catch (e) {
+      debugPrint('Error resolving alert: $e');
+    }
+    final idx = _alerts.indexWhere((a) => a.id == alertId);
+    if (idx != -1) {
+      final old = _alerts[idx];
+      _alerts[idx] = AlertModel(
+        id: old.id,
+        type: old.type,
+        severity: old.severity,
+        title: old.title,
+        message: old.message,
+        timestamp: old.timestamp,
+        isResolved: true,
+      );
+      _unreadCount = _alerts.where((a) => !a.isResolved).length;
+      notifyListeners();
+    }
   }
 
   void markAllRead() {
     _unreadCount = 0;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }

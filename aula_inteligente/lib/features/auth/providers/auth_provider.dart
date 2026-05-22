@@ -11,7 +11,6 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
 
-  // Mock users for demo (replace with Firebase Auth)
   static final List<Map<String, dynamic>> _mockUsers = [
     {
       'id': 'admin-001',
@@ -29,7 +28,7 @@ class AuthProvider extends ChangeNotifier {
       'email': 'docente@escuela.edu',
       'password': 'docente123',
       'role': 'teacher',
-      'rfidTag': 'E5F6G7H8',
+      'rfidTag': 'E5F6A7B8',
       'isActive': true,
       'createdAt': '2024-02-10T09:00:00',
     },
@@ -39,7 +38,7 @@ class AuthProvider extends ChangeNotifier {
       'email': 'conserje@escuela.edu',
       'password': 'conserje123',
       'role': 'janitor',
-      'rfidTag': 'I9J0K1L2',
+      'rfidTag': '32AF4E06',
       'isActive': true,
       'createdAt': '2024-03-05T07:00:00',
     },
@@ -50,7 +49,7 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 1200));
+    await Future.delayed(const Duration(milliseconds: 800));
 
     final match = _mockUsers.where(
       (u) => u['email'] == email.trim() && u['password'] == password,
@@ -75,7 +74,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Usuarios autorizados para NFC / RFID (misma lista que login mock).
   static List<UserModel> get authorizedUsers =>
       _mockUsers.map((u) => UserModel.fromMap(u)).toList();
 

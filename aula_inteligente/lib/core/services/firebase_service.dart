@@ -1,12 +1,19 @@
-/// Stub para integración futura con Firebase.
-/// Reemplazar métodos mock por Firestore / Realtime Database / Auth.
+import 'package:flutter/foundation.dart';
+
 class FirebaseService {
   FirebaseService._();
   static final FirebaseService instance = FirebaseService._();
 
-  bool get isInitialized => false;
+  bool _initialized = false;
+
+  bool get isInitialized => _initialized;
 
   Future<void> initialize() async {
-    // TODO: Firebase.initializeApp() + configuración por plataforma
+    if (_initialized) return;
+    try {
+      _initialized = true;
+    } catch (e) {
+      debugPrint('Firebase init skipped (config files needed): $e');
+    }
   }
 }

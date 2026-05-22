@@ -1,17 +1,17 @@
 class SensorData {
   final double temperature;
   final double humidity;
-  final double co2;
+  final int airQualityIndex;
   final bool smokeDetected;
-  final bool flameDetected;
+  final double? powerConsumptionWatts;
   final DateTime timestamp;
 
   const SensorData({
     required this.temperature,
     required this.humidity,
-    required this.co2,
+    required this.airQualityIndex,
     required this.smokeDetected,
-    required this.flameDetected,
+    this.powerConsumptionWatts,
     required this.timestamp,
   });
 
@@ -28,22 +28,23 @@ class SensorData {
     return 'Húmedo';
   }
 
-  String get co2Status {
-    if (co2 < 400) return 'Excelente';
-    if (co2 <= 800) return 'Bueno';
-    if (co2 <= 1200) return 'Moderado';
-    return 'Alto';
+  String get airQualityStatus {
+    if (airQualityIndex < 50) return 'Excelente';
+    if (airQualityIndex <= 100) return 'Bueno';
+    if (airQualityIndex <= 150) return 'Moderado';
+    if (airQualityIndex <= 200) return 'Malo';
+    return 'Peligroso';
   }
 
-  bool get hasAlert => smokeDetected || flameDetected || co2 > 1500;
+  bool get hasAlert => smokeDetected || airQualityIndex > 200;
 
-  factory SensorData.fromMap(Map<String, dynamic> map) {
+  factory SensorData.fromApi(Map<String, dynamic> map) {
     return SensorData(
       temperature: (map['temperature'] ?? 0.0).toDouble(),
       humidity: (map['humidity'] ?? 0.0).toDouble(),
-      co2: (map['co2'] ?? 0.0).toDouble(),
-      smokeDetected: map['smokeDetected'] ?? false,
-      flameDetected: map['flameDetected'] ?? false,
+      airQualityIndex: (map['air_quality_index'] ?? 0).toInt(),
+      smokeDetected: map['smoke_detected'] ?? false,
+      powerConsumptionWatts: (map['power_consumption_watts'] ?? 0).toDouble(),
       timestamp: DateTime.tryParse(map['timestamp'] ?? '') ?? DateTime.now(),
     );
   }
@@ -51,9 +52,9 @@ class SensorData {
   Map<String, dynamic> toMap() => {
         'temperature': temperature,
         'humidity': humidity,
-        'co2': co2,
+        'airQualityIndex': airQualityIndex,
         'smokeDetected': smokeDetected,
-        'flameDetected': flameDetected,
+        'powerConsumptionWatts': powerConsumptionWatts,
         'timestamp': timestamp.toIso8601String(),
       };
 }

@@ -26,10 +26,11 @@ class _EnvironmentScreenState extends State<EnvironmentScreen> {
     final histories = [
       provider.temperatureHistory,
       provider.humidityHistory,
-      provider.co2History,
+      provider.airQualityHistory,
     ];
     final colors = [AppColors.tempColor, AppColors.humidColor, AppColors.co2Color];
-    final labels = ['Temperatura (°C)', 'Humedad (%)', 'CO₂ (ppm)'];
+    final labels = ['Temperatura (°C)', 'Humedad (%)', 'Calidad del Aire (AQI)'];
+    final segmentLabels = ['Temp', 'Hum', 'AQ'];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Monitoreo Ambiental')),
@@ -62,18 +63,18 @@ class _EnvironmentScreenState extends State<EnvironmentScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: SensorCard(
-                  title: 'CO₂',
-                  value: current.co2.toStringAsFixed(0),
-                  unit: 'ppm',
+                  title: 'Calidad del Aire',
+                  value: current.airQualityIndex.toString(),
+                  unit: 'AQI',
                   icon: Icons.air_rounded,
                   accentColor: AppColors.co2Color,
-                  statusLabel: current.co2Status,
+                  statusLabel: current.airQualityStatus,
                   statusColor: AppColors.co2Color,
                 ),
               ),
             ],
           ).animate().fadeIn(delay: 100.ms),
-          if (current.smokeDetected || current.flameDetected) ...[
+          if (current.smokeDetected) ...[
             const SizedBox(height: 12),
             _SafetyBanner(current: current),
           ],
@@ -81,10 +82,10 @@ class _EnvironmentScreenState extends State<EnvironmentScreen> {
           Text('Histórico (24 h)', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 0, label: Text('Temp')),
-              ButtonSegment(value: 1, label: Text('Hum')),
-              ButtonSegment(value: 2, label: Text('CO₂')),
+            segments: [
+              ButtonSegment(value: 0, label: Text(segmentLabels[0])),
+              ButtonSegment(value: 1, label: Text(segmentLabels[1])),
+              ButtonSegment(value: 2, label: Text(segmentLabels[2])),
             ],
             selected: {_chartTab},
             onSelectionChanged: (s) => setState(() => _chartTab = s.first),
@@ -123,16 +124,14 @@ class _SafetyBanner extends StatelessWidget {
         gradient: AppColors.dangerGradient,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 32),
-          const SizedBox(width: 12),
+          Icon(Icons.warning_amber_rounded, color: Colors.white, size: 32),
+          SizedBox(width: 12),
           Expanded(
             child: Text(
-              current.flameDetected
-                  ? '¡Flama detectada! Evacúe el aula.'
-                  : 'Humo detectado. Verifique el área.',
-              style: const TextStyle(
+              'Humo detectado. Verifique el área.',
+              style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
               ),

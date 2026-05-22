@@ -1,19 +1,20 @@
 const express = require('express');
 const { db, Timestamp } = require('../services/firebase');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateApiKey } = require('../middleware/apiKey');
 const { SENSOR_THRESHOLDS, ALERT_TYPES } = require('../config');
 
 const router = express.Router();
 
-router.post('/reading', authenticateToken, requireRole('admin'), async (req, res) => {
+router.post('/reading', authenticateApiKey, async (req, res) => {
   try {
     const {
       classroom_id,
       temperature,
       humidity,
       smoke_detected,
-      flame_detected,
       power_consumption_watts,
+      air_quality_index,
     } = req.body;
 
     if (!classroom_id) {
@@ -25,8 +26,8 @@ router.post('/reading', authenticateToken, requireRole('admin'), async (req, res
       temperature: temperature ?? null,
       humidity: humidity ?? null,
       smoke_detected: smoke_detected ?? false,
-      flame_detected: flame_detected ?? false,
       power_consumption_watts: power_consumption_watts ?? null,
+      air_quality_index: air_quality_index ?? null,
       timestamp: Timestamp.now(),
     };
 

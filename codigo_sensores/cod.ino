@@ -2,6 +2,22 @@
 #include <Adafruit_AHTX0.h>
 #include <Adafruit_PN532.h>
 #include <ESP32Servo.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+// ========================
+// WiFi Configuration
+// ========================
+#define WIFI_SSID "your_wifi_ssid"
+#define WIFI_PASS "your_wifi_password"
+
+// ========================
+// Backend Configuration
+// ========================
+#define API_BASE_URL "https://us-central1-aula-inteligente-30639.cloudfunctions.net/api"
+#define API_KEY "aula-sensor-key-2024"
+#define CLASSROOM_ID "aula-201-edificio-b"
 
 // ========================
 // AHT20 - I2C
@@ -26,6 +42,10 @@ Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
 // ACS712
 // ========================
 #define ACS712_PIN 35
+#define ACS712_SENSITIVITY 0.185  // V/A for 5A module (0.100 for 20A, 0.066 for 30A)
+#define ACS712_VCC 5.0
+#define VREF 3.3
+#define ADC_RES 4095
 
 // ========================
 // Servo
@@ -38,10 +58,11 @@ Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
 Servo miServo;
 
 // ========================
-// UIDs autorizados
+// Intervalos
 // ========================
-String uidsAutorizados[] = { "A1B2C3D4", "E5F6A7B8", "32AF4E06" };
-int totalAutorizados = 3;
+#define SENSOR_INTERVAL_MS 60000  // Enviar datos cada 60s
+
+unsigned long ultimoEnvio = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -53,7 +74,6 @@ void setup() {
   // AHT20
   // ========================
   Serial.println("Iniciando AHT20...");
-
   if (!aht.begin()) {
     Serial.println("  ERROR: AHT20 no detectado");
   } else {
@@ -64,25 +84,18 @@ void setup() {
   // PN532
   // ========================
   Serial.println("Iniciando PN532...");
-
   nfc.begin();
-
   uint32_t versiondata = nfc.getFirmwareVersion();
-
   if (!versiondata) {
     Serial.println("  ERROR: PN532 no detectado");
   } else {
-
     Serial.print("  Chip PN5");
     Serial.println((versiondata >> 24) & 0xFF, HEX);
-
     Serial.print("  Firmware ver: ");
     Serial.print((versiondata >> 16) & 0xFF, DEC);
     Serial.print('.');
     Serial.println((versiondata >> 8) & 0xFF, DEC);
-
     nfc.SAMConfig();
-
     Serial.println("  PN532 OK");
   }
 
@@ -102,103 +115,162 @@ void setup() {
   // ========================
   miServo.attach(SERVO_PIN);
   miServo.write(SERVO_CLOSE);
-
   Serial.println("  Servo OK - Posicion inicial: cerrado");
+
+  // ========================
+  // WiFi
+  // ========================
+  Serial.print("Conectando a WiFi...");
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  int intentos = 0;
+  while (WiFi.status() != WL_CONNECTED && intentos < 20) {
+    delay(500);
+    Serial.print(".");
+    intentos++;
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println(" CONECTADO");
+    Serial.print("  IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println(" FALLIDO - continuando sin WiFi");
+  }
 
   Serial.println("\nSistema listo. Acerca una tarjeta NFC...\n");
 }
 
 void loop() {
+  unsigned long ahora = millis();
 
   // ========================
   // Leer sensores
   // ========================
-  leerAHT20();
-  leerMQ2();
-  leerACS712();
+  float temperatura = leerAHT20();
+  float humedad = leerAHT20Humedad();
+  int mq2Digital = leerMQ2Digital();
+  int mq2Analog = leerMQ2Analogico();
+  float potenciaWatts = leerACS712();
+  int calidadAire = calcularCalidadAire(mq2Analog);
 
   // ========================
   // NFC + Servo
   // ========================
   leerPN532yControlServo();
 
-  Serial.println("==================================");
+  // ========================
+  // Enviar datos al backend
+  // ========================
+  if (ahora - ultimoEnvio >= SENSOR_INTERVAL_MS) {
+    ultimoEnvio = ahora;
 
+    if (WiFi.status() == WL_CONNECTED) {
+      enviarLectura(temperatura, humedad, mq2Digital == LOW, potenciaWatts, calidadAire);
+    } else {
+      Serial.println("[WIFI] No conectado - reintentando conexion...");
+      WiFi.reconnect();
+    }
+  }
+
+  Serial.println("==================================");
   delay(2000);
 }
 
 // ========================
-// AHT20
+// AHT20 - Temperatura
 // ========================
-void leerAHT20() {
-
+float leerAHT20() {
   sensors_event_t humidity, temp;
-
   aht.getEvent(&humidity, &temp);
 
   Serial.print("[AHT20] Temperatura: ");
   Serial.print(temp.temperature);
+  Serial.print(" °C");
 
-  Serial.print(" °C  |  Humedad: ");
-  Serial.print(humidity.relative_humidity);
-
-  Serial.println(" %");
+  return temp.temperature;
 }
 
 // ========================
-// MQ2
+// AHT20 - Humedad
 // ========================
-void leerMQ2() {
+float leerAHT20Humedad() {
+  sensors_event_t humidity, temp;
+  aht.getEvent(&humidity, &temp);
 
-  int mq2Digital = digitalRead(MQ2_DO_PIN);
-  int mq2Analog = analogRead(MQ2_AO_PIN);
+  Serial.print("  |  Humedad: ");
+  Serial.print(humidity.relative_humidity);
+  Serial.println(" %");
 
+  return humidity.relative_humidity;
+}
+
+// ========================
+// MQ2 - Digital
+// ========================
+int leerMQ2Digital() {
+  int value = digitalRead(MQ2_DO_PIN);
   Serial.print("[MQ2]   Digital: ");
+  Serial.print(value == LOW ? "ALERTA - Gas/Humo detectado" : "Normal");
+  return value;
+}
 
-  Serial.print(
-    mq2Digital == LOW ? "ALERTA - Gas/Humo detectado" : "Normal");
-
+// ========================
+// MQ2 - Analogico
+// ========================
+int leerMQ2Analogico() {
+  int value = analogRead(MQ2_AO_PIN);
   Serial.print("  |  Analogico: ");
+  Serial.println(value);
+  return value;
+}
 
-  Serial.println(mq2Analog);
+// ========================
+// Calcular Indice de Calidad del Aire (0-300)
+// ========================
+int calcularCalidadAire(int mq2Analog) {
+  if (mq2Analog < 200) return (int)map(mq2Analog, 0, 200, 0, 20);
+  if (mq2Analog < 800) return (int)map(mq2Analog, 200, 800, 20, 50);
+  if (mq2Analog < 2000) return (int)map(mq2Analog, 800, 2000, 50, 100);
+  if (mq2Analog < 3000) return (int)map(mq2Analog, 2000, 3000, 100, 200);
+  return (int)map(mq2Analog, 3000, 4095, 200, 300);
 }
 
 // ========================
 // ACS712
 // ========================
-void leerACS712() {
-
+float leerACS712() {
   long suma = 0;
-
   const int muestras = 200;
 
   for (int i = 0; i < muestras; i++) {
-
     suma += analogRead(ACS712_PIN);
-
     delayMicroseconds(500);
   }
 
   float promedio = suma / (float)muestras;
+  float voltaje = (promedio / ADC_RES) * VREF;
+  float corriente = (voltaje - (ACS712_VCC / 2.0)) / ACS712_SENSITIVITY;
+  float potencia = corriente * 220.0;  // 220V asumido
 
-  float voltaje = (promedio / 4095.0) * 3.3;
+  if (potencia < 0) potencia = 0;
 
-  Serial.print("[ACS712] ADC promedio: ");
+  Serial.print("[ACS712] ADC: ");
   Serial.print(promedio, 1);
-
-  Serial.print("  |  Voltaje en pin: ");
+  Serial.print("  |  Voltaje: ");
   Serial.print(voltaje, 3);
+  Serial.print(" V  |  Corriente: ");
+  Serial.print(corriente, 3);
+  Serial.print(" A  |  Potencia: ");
+  Serial.print(potencia, 1);
+  Serial.println(" W");
 
-  Serial.println(" V");
+  return potencia;
 }
 
 // ========================
 // PN532 + Servo
 // ========================
 void leerPN532yControlServo() {
-
   uint8_t success;
-
   uint8_t uid[7];
   uint8_t uidLength;
 
@@ -209,87 +281,150 @@ void leerPN532yControlServo() {
     1000);
 
   if (!success) {
-
     Serial.println("[NFC]   Sin tarjeta");
-
     return;
   }
 
   Serial.println("\n--- Tarjeta detectada ---");
-
   Serial.print("UID: ");
 
   String uidStr = "";
-
   for (uint8_t i = 0; i < uidLength; i++) {
-
     if (uid[i] < 0x10) {
       Serial.print("0");
       uidStr += "0";
     }
-
     Serial.print(uid[i], HEX);
-
     uidStr += String(uid[i], HEX);
-
     if (i < uidLength - 1) {
       Serial.print(":");
     }
   }
-
   Serial.println();
 
   uidStr.toUpperCase();
-
   Serial.print("[NFC]   UID normalizado: ");
-
   Serial.println(uidStr);
 
   // ========================
-  // Validar acceso
+  // Validar contra backend
   // ========================
-  if (estaAutorizado(uidStr)) {
-
-    Serial.println("[ACCESO] AUTORIZADO - Abriendo cerradura...");
-
-    abrirCerradura();
-
+  if (WiFi.status() == WL_CONNECTED) {
+    if (validarNfcConBackend(uidStr)) {
+      Serial.println("[ACCESO] AUTORIZADO (backend) - Abriendo cerradura...");
+      abrirCerradura();
+    } else {
+      Serial.println("[ACCESO] DENEGADO (backend) - UID no registrado");
+    }
   } else {
-
-    Serial.println("[ACCESO] DENEGADO - UID no registrado");
+    // Fallback local si no hay WiFi
+    if (estaAutorizadoLocal(uidStr)) {
+      Serial.println("[ACCESO] AUTORIZADO (local) - Abriendo cerradura...");
+      abrirCerradura();
+    } else {
+      Serial.println("[ACCESO] DENEGADO (local) - UID no registrado");
+    }
   }
 
   delay(1000);
 }
 
 // ========================
-// Verificar UID
+// Validar NFC via Backend
 // ========================
-bool estaAutorizado(String uid) {
+bool validarNfcConBackend(String uid) {
+  if (WiFi.status() != WL_CONNECTED) return false;
 
+  HTTPClient http;
+  String url = String(API_BASE_URL) + "/auth/validate-nfc";
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-api-key", API_KEY);
+
+  String payload = "{\"card_uid\":\"" + uid + "\"}";
+  int codigo = http.POST(payload);
+
+  if (codigo == 200) {
+    String respuesta = http.getString();
+    http.end();
+
+    DynamicJsonDocument doc(256);
+    DeserializationError error = deserializeJson(doc, respuesta);
+    if (error) return false;
+
+    bool autorizado = doc["authorized"] | false;
+    if (autorizado) {
+      const char* nombre = doc["name"] | "Desconocido";
+      Serial.print("[BACKEND] Acceso autorizado para: ");
+      Serial.println(nombre);
+    }
+    return autorizado;
+  }
+
+  http.end();
+  return false;
+}
+
+// ========================
+// Verificar UID local (fallback)
+// ========================
+String uidsAutorizados[] = { "A1B2C3D4", "E5F6A7B8", "32AF4E06" };
+int totalAutorizados = 3;
+
+bool estaAutorizadoLocal(String uid) {
   for (int i = 0; i < totalAutorizados; i++) {
-
     if (uid == uidsAutorizados[i]) {
-
       return true;
     }
   }
-
   return false;
+}
+
+// ========================
+// Enviar lectura al backend
+// ========================
+void enviarLectura(float temperatura, float humedad, bool humoDetectado, float potenciaWatts, int calidadAire) {
+  HTTPClient http;
+  String url = String(API_BASE_URL) + "/sensors/reading";
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-api-key", API_KEY);
+
+  StaticJsonDocument<256> doc;
+  doc["classroom_id"] = CLASSROOM_ID;
+  doc["temperature"] = temperatura;
+  doc["humidity"] = humedad;
+  doc["smoke_detected"] = humoDetectado;
+  doc["power_consumption_watts"] = potenciaWatts;
+  doc["air_quality_index"] = calidadAire;
+  doc["api_key"] = API_KEY;
+
+  String payload;
+  serializeJson(doc, payload);
+
+  Serial.print("[HTTP] Enviando lectura... ");
+  int codigo = http.POST(payload);
+
+  if (codigo > 0) {
+    Serial.print("HTTP ");
+    Serial.print(codigo);
+    Serial.print(" - ");
+    Serial.println(http.getString());
+  } else {
+    Serial.print("Error: ");
+    Serial.println(http.errorToString(codigo));
+  }
+
+  http.end();
 }
 
 // ========================
 // Servo
 // ========================
 void abrirCerradura() {
-
   miServo.write(SERVO_OPEN);
-
   Serial.println("[SERVO]  Posicion: ABIERTO");
-
   delay(TIEMPO_ABIERTO);
-
   miServo.write(SERVO_CLOSE);
-
   Serial.println("[SERVO]  Posicion: CERRADO");
 }

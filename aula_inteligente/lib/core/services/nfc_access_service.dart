@@ -1,17 +1,22 @@
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:nfc_manager/nfc_manager.dart';
-
 import '../../features/access/models/nfc_access_status.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../constants/app_config.dart';
+import 'api_client.dart';
 
-/// Lectura NFC para validar acceso en el lector de la puerta.
 class NfcAccessService {
   NfcAccessService._();
   static final NfcAccessService instance = NfcAccessService._();
 
   static const Duration scanTimeout = Duration(seconds: 12);
+
+  ApiClient? _api;
+
+  void setApiClient(ApiClient api) {
+    _api = api;
+  }
 
   Future<bool> get isNfcAvailable async {
     if (kIsWeb) return false;
@@ -26,8 +31,6 @@ class NfcAccessService {
     }
   }
 
-  /// Inicia sesión NFC. En dispositivo real lee el identificador del tag/lector.
-  /// En emulador o sin NFC simula la tarjeta del usuario autenticado.
   Future<NfcAccessOutcome> scanDoorAccess({
     required String? currentUserRfid,
     required String? currentUserName,
@@ -65,7 +68,8 @@ class NfcAccessService {
       await NfcManager.instance.startSession(
         onDiscovered: (NfcTag tag) async {
           final tagId = _extractTagId(tag);
-          complete(_evaluateTag(tagId));
+          final outcome = await _evaluateTagWithBackend(tagId);
+          complete(outcome);
         },
       );
     } catch (e) {
@@ -82,16 +86,44 @@ class NfcAccessService {
     return completer.future;
   }
 
-  NfcAccessOutcome _evaluateTag(String? rawTagId) {
+  Future<NfcAccessOutcome> _evaluateTagWithBackend(String? rawTagId) async {
     final tagId = _normalizeTagId(rawTagId);
 
     if (tagId == null || tagId.isEmpty) {
       return const NfcAccessOutcome(
         status: NfcAccessStatus.badRead,
         title: 'Mala lectura',
-        message:
-            'No se pudo leer el identificador NFC. Mantén el teléfono quieto sobre el sensor.',
+        message: 'No se pudo leer el identificador NFC.',
       );
+    }
+
+    if (_api != null) {
+      try {
+        final data = await _api!.post('/auth/validate-nfc', body: {
+          'card_uid': tagId,
+        });
+        final authorized = data['authorized'] as bool? ?? false;
+        if (authorized) {
+          return NfcAccessOutcome(
+            status: NfcAccessStatus.granted,
+            title: 'Acceso permitido',
+            message: 'Bienvenido/a, ${data['name'] ?? 'Usuario'}. Puerta desbloqueada.',
+            tagId: tagId,
+            userName: data['name'] as String?,
+            userId: data['user_id'] as String?,
+            userRole: data['role'] as String?,
+          );
+        } else {
+          return NfcAccessOutcome(
+            status: NfcAccessStatus.denied,
+            title: 'Acceso denegado',
+            message: data['message'] as String? ?? 'Tarjeta no autorizada.',
+            tagId: tagId,
+          );
+        }
+      } catch (e) {
+        debugPrint('Error validating NFC via backend: $e');
+      }
     }
 
     final user = AuthProvider.findUserByRfidTag(tagId);
@@ -120,6 +152,8 @@ class NfcAccessService {
       message: 'Bienvenido/a, ${user.name}. Puerta desbloqueada.',
       tagId: tagId,
       userName: user.name,
+      userId: user.id,
+      userRole: user.role.name,
     );
   }
 
@@ -137,7 +171,7 @@ class NfcAccessService {
       );
     }
 
-    return _evaluateTag(currentUserRfid);
+    return _evaluateTagWithBackend(currentUserRfid);
   }
 
   String? _extractTagId(NfcTag tag) {
@@ -156,7 +190,6 @@ class NfcAccessService {
     final cleaned = raw.replaceAll(RegExp(r'[^0-9A-Fa-f]'), '').toUpperCase();
     if (cleaned.isEmpty) return null;
 
-    // UID del teléfono (ej. 04A1B2C3D4) vs RFID mock (A1B2C3D4): comparar sufijo.
     if (cleaned.length > 8) {
       final suffix = cleaned.substring(cleaned.length - 8);
       if (AuthProvider.findUserByRfidTag(suffix) != null) return suffix;

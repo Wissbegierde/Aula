@@ -10,6 +10,8 @@ class NfcAccessOutcome {
   final String message;
   final String? tagId;
   final String? userName;
+  final String? userId;
+  final String? userRole;
 
   const NfcAccessOutcome({
     required this.status,
@@ -17,5 +19,7 @@ class NfcAccessOutcome {
     required this.message,
     this.tagId,
     this.userName,
+    this.userId,
+    this.userRole,
   });
 }

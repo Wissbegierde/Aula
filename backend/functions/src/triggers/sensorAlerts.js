@@ -24,18 +24,20 @@ exports.triggerAlertOnReading = functions.firestore
       });
     }
 
-    if (data.flame_detected === true) {
-      alerts.push({
-        classroom_id: classroomId,
-        type: 'flame',
-        title: 'Llama detectada',
-        message: `Se detectó una llama en el aula ${classroomId}`,
-        severity: 'critical',
-        resolved: false,
-        timestamp: Timestamp.now(),
-        resolved_at: null,
-        resolved_by: null,
-      });
+    if (data.air_quality_index !== null && data.air_quality_index !== undefined) {
+      if (data.air_quality_index > 200) {
+        alerts.push({
+          classroom_id: classroomId,
+          type: 'air_quality',
+          title: 'Calidad del aire baja',
+          message: `Índice de calidad del aire en ${data.air_quality_index} en el aula ${classroomId}`,
+          severity: 'warning',
+          resolved: false,
+          timestamp: Timestamp.now(),
+          resolved_at: null,
+          resolved_by: null,
+        });
+      }
     }
 
     if (data.temperature !== null && data.temperature !== undefined) {

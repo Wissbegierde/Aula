@@ -25,7 +25,11 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'aula-inteligente-api' });
 });
 
-exports.api = functions.https.onRequest(app);
+exports.api = functions
+  .runWith({
+    secrets: ['SENSOR_API_KEY'],
+  })
+  .https.onRequest(app);
 
 const { triggerAlertOnReading } = require('./triggers/sensorAlerts');
 const { autoCloseOnInactivity } = require('./triggers/autoClose');

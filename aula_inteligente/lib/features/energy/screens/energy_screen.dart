@@ -3,21 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/services/mock_data_service.dart';
 import '../../../shared/widgets/gradient_card.dart';
 import '../models/energy_model.dart';
+import '../providers/energy_provider.dart';
 
 class EnergyScreen extends StatelessWidget {
   const EnergyScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final mock = MockDataService.instance;
-    final history = mock.getEnergyHistory();
-    final currentKw = mock.currentPowerKw;
-    final todayKwh = mock.todayConsumptionKwh;
-    final monthKwh = mock.monthConsumptionKwh;
+    final provider = context.watch<EnergyProvider>();
+    final history = provider.history;
+    final currentKw = provider.currentPowerKw;
+    final todayKwh = provider.todayConsumptionKwh;
+    final monthKwh = provider.monthConsumptionKwh;
     final usagePercent = (todayKwh / 15).clamp(0.0, 1.0);
 
     return Scaffold(

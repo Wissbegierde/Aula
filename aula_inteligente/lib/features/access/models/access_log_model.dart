@@ -35,6 +35,30 @@ class AccessLogModel {
     );
   }
 
+  factory AccessLogModel.fromApi(Map<String, dynamic> map) {
+    return AccessLogModel(
+      id: map['id'] ?? '',
+      userId: map['user_id'] ?? '',
+      userName: map['user_name'] ?? '',
+      userRole: map['role'] ?? '',
+      rfidTag: map['card_uid'] ?? '',
+      timestamp: DateTime.tryParse(map['timestamp'] ?? '') ?? DateTime.now(),
+      action: _parseAction(map['action'] as String? ?? 'open'),
+      granted: map['granted'] ?? true,
+    );
+  }
+
+  static AccessAction _parseAction(String action) {
+    switch (action) {
+      case 'open':
+        return AccessAction.entry;
+      case 'close':
+        return AccessAction.exit;
+      default:
+        return AccessAction.denied;
+    }
+  }
+
   Map<String, dynamic> toMap() => {
         'id': id,
         'userId': userId,
