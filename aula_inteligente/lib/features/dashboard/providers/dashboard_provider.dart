@@ -5,7 +5,6 @@ import '../../../core/services/api_client.dart';
 
 class DashboardProvider extends ChangeNotifier {
   final ApiClient _api;
-  bool _lightsOn = true;
   int _occupancy = 14;
   final String classroomName;
   Timer? _timer;
@@ -15,7 +14,6 @@ class DashboardProvider extends ChangeNotifier {
     _timer = Timer.periodic(AppConfig.sensorPollInterval, (_) => _fetchStatus());
   }
 
-  bool get lightsOn => _lightsOn;
   int get occupancy => _occupancy;
 
   Future<void> _fetchStatus() async {
@@ -25,7 +23,6 @@ class DashboardProvider extends ChangeNotifier {
       );
       final classroom = data['classroom'] as Map<String, dynamic>?;
       if (classroom != null) {
-        _lightsOn = classroom['lights_on'] as bool? ?? true;
         notifyListeners();
       }
     } catch (e) {
@@ -33,21 +30,6 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> toggleLights() async {
-    _lightsOn = !_lightsOn;
-    notifyListeners();
-
-    try {
-      await _api.patch(
-        '/classrooms/${AppConfig.classroomId}',
-        body: {'lights_on': _lightsOn},
-      );
-    } catch (e) {
-      debugPrint('Error toggling lights: $e');
-      _lightsOn = !_lightsOn;
-      notifyListeners();
-    }
-  }
 
   void setOccupancy(int value) {
     _occupancy = value;

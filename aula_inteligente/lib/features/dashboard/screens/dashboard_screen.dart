@@ -99,13 +99,7 @@ class DashboardScreen extends StatelessWidget {
               ),
             ).animate().fadeIn(),
             const SizedBox(height: 16),
-            if (user?.role == UserRole.janitor || user?.role == UserRole.admin) ...[
-              _LightsControl(
-                lightsOn: dashboard.lightsOn,
-                onToggle: dashboard.toggleLights,
-              ),
-              const SizedBox(height: 16),
-            ],
+
             Text('Sensores en vivo', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
             Row(
@@ -192,46 +186,6 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-class _LightsControl extends StatelessWidget {
-  final bool lightsOn;
-  final VoidCallback onToggle;
-
-  const _LightsControl({required this.lightsOn, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    return GradientCard(
-      onTap: onToggle,
-      child: Row(
-        children: [
-          Icon(
-            lightsOn ? Icons.lightbulb_rounded : Icons.lightbulb_outline_rounded,
-            color: lightsOn ? AppColors.warning : AppColors.textMuted,
-            size: 32,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Iluminación', style: Theme.of(context).textTheme.titleMedium),
-                Text(
-                  lightsOn ? 'Luces encendidas' : 'Luces apagadas',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: lightsOn,
-            onChanged: (_) => onToggle(),
-            activeThumbColor: AppColors.primary,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _AccessTile extends StatelessWidget {
   final AccessLogModel log;

@@ -83,7 +83,7 @@ class EnvironmentProvider extends ChangeNotifier {
     final now = DateTime.now();
     double newTemp = (_current.temperature + (_rng.nextDouble() - 0.5) * 0.6).clamp(15.0, 40.0);
     double newHumid = (_current.humidity + (_rng.nextDouble() - 0.5) * 1.5).clamp(20.0, 95.0);
-    int newAirQuality = (_current.airQualityIndex + (_rng.nextDouble() - 0.5) * 10).clamp(0, 300).toInt();
+    double newAirQuality = (_current.airQualityIndex + (_rng.nextDouble() - 0.5) * 10).clamp(0, 300).toDouble();
 
     _current = SensorData(
       temperature: double.parse(newTemp.toStringAsFixed(1)),

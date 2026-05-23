@@ -1,7 +1,7 @@
 class SensorData {
   final double temperature;
   final double humidity;
-  final int airQualityIndex;
+  final double airQualityIndex;
   final bool smokeDetected;
   final double? powerConsumptionWatts;
   final DateTime timestamp;
