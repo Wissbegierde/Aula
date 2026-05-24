@@ -307,6 +307,17 @@ void leerPN532yControlServo() {
   Serial.println(uidStr);
 
   // ========================
+  // Intentar HCE (Host Card Emulation)
+  // El smartphone en modo llave responde a comandos APDU
+  // ========================
+  String hceUid = leerHceUid();
+  if (hceUid.length() > 0) {
+    Serial.print("[HCE]   UID desde telefono: ");
+    Serial.println(hceUid);
+    uidStr = hceUid;
+  }
+
+  // ========================
   // Validar contra backend
   // ========================
   if (WiFi.status() == WL_CONNECTED) {
@@ -327,6 +338,65 @@ void leerPN532yControlServo() {
   }
 
   delay(1000);
+}
+
+// ========================
+// Intentar lectura HCE via APDU
+// Intenta intercambio APDU con el tag
+// Si responde, extrae el UID del telefono
+// Si falla (tarjeta comun), devuelve vacio
+// ========================
+String leerHceUid() {
+  uint8_t response[64];
+  uint8_t responseLength;
+
+  // SELECT AID = F000000001 (proprietario Aula Inteligente)
+  uint8_t selectApdu[] = {
+    0x00, 0xA4, 0x04, 0x00, 0x07,
+    0xF0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00
+  };
+
+  responseLength = sizeof(response);
+  bool ok = nfc.inDataExchange(selectApdu, sizeof(selectApdu), response, &responseLength);
+
+  if (!ok || responseLength < 2) {
+    Serial.println("[HCE]   No responde a APDU - tarjeta comun");
+    return "";
+  }
+
+  // Verificar status word (0x9000)
+  if (response[responseLength - 2] != 0x90 || response[responseLength - 1] != 0x00) {
+    Serial.println("[HCE]   SELECT AID rechazado");
+    return "";
+  }
+
+  Serial.println("[HCE]   Telefono en modo llave detectado!");
+
+  // Enviar comando cualquiera para recibir el UID
+  // El HCE service responde a cualquier comando con el UID + 0x9000
+  uint8_t readCmd[] = { 0x00, 0xB0, 0x00, 0x00, 0x00 };
+  responseLength = sizeof(response);
+  ok = nfc.inDataExchange(readCmd, sizeof(readCmd), response, &responseLength);
+
+  if (!ok || responseLength < 2) {
+    Serial.println("[HCE]   Error al leer UID del telefono");
+    return "";
+  }
+
+  // Verificar status word
+  if (response[responseLength - 2] != 0x90 || response[responseLength - 1] != 0x00) {
+    Serial.println("[HCE]   Respuesta invalida del telefono");
+    return "";
+  }
+
+  // Extraer UID (todo antes del status word)
+  String uid = "";
+  for (uint8_t i = 0; i < responseLength - 2; i++) {
+    uid += (char)response[i];
+  }
+
+  uid.toUpperCase();
+  return uid;
 }
 
 // ========================

@@ -1,14 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/services/hce_key_service.dart';
 import '../../core/services/nfc_access_service.dart';
 import '../../features/access/models/nfc_access_status.dart';
 import '../../features/access/providers/access_provider.dart';
 import '../../features/auth/providers/auth_provider.dart';
 
-/// Botón flotante para acercar el teléfono al lector NFC de la puerta.
 class DoorNfcFab extends StatefulWidget {
   const DoorNfcFab({super.key});
 
@@ -18,6 +19,90 @@ class DoorNfcFab extends StatefulWidget {
 
 class _DoorNfcFabState extends State<DoorNfcFab> {
   bool _isScanning = false;
+  bool _isKeyMode = false;
+  Timer? _keyModeTimer;
+
+  @override
+  void dispose() {
+    _keyModeTimer?.cancel();
+    HceKeyService.instance.deactivate();
+    super.dispose();
+  }
+
+  void _showOptionsSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withAlpha(80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                'Acceso a la puerta',
+                style: Theme.of(ctx).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.credit_card_rounded, color: AppColors.primary),
+                title: const Text('Leer tarjeta NFC'),
+                subtitle: const Text('Acerca una tarjeta NFC al teléfono'),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                tileColor: AppColors.surfaceElevated,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _startDoorScan();
+                },
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: Icon(
+                  _isKeyMode ? Icons.phonelink_lock_rounded : Icons.phone_android_rounded,
+                  color: AppColors.primary,
+                ),
+                title: Text(_isKeyMode ? 'Desactivar modo llave' : 'Usar teléfono como llave'),
+                subtitle: Text(
+                  _isKeyMode
+                      ? 'Toca el teléfono en el lector de la puerta'
+                      : 'El teléfono funciona como una tarjeta NFC',
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                tileColor: _isKeyMode
+                    ? AppColors.primary.withAlpha(30)
+                    : AppColors.surfaceElevated,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  if (_isKeyMode) {
+                    _deactivateKeyMode();
+                  } else {
+                    _activateKeyMode();
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _startDoorScan() async {
     if (_isScanning) return;
@@ -40,6 +125,63 @@ class _DoorNfcFabState extends State<DoorNfcFab> {
 
     context.read<AccessProvider>().registerNfcOutcome(outcome);
     _showResultDialog(outcome);
+  }
+
+  Future<void> _activateKeyMode() async {
+    final auth = context.read<AuthProvider>();
+    final user = auth.currentUser;
+    if (user?.rfidTag == null || user!.rfidTag!.isEmpty) {
+      _showResultDialog(NfcAccessOutcome(
+        status: NfcAccessStatus.denied,
+        title: 'Sin llave',
+        message: 'Tu cuenta no tiene un UID NFC asociado. Contacta al administrador.',
+      ));
+      return;
+    }
+
+    final supported = await HceKeyService.instance.isHceSupported;
+    if (!supported) {
+      _showResultDialog(NfcAccessOutcome(
+        status: NfcAccessStatus.badRead,
+        title: 'No disponible',
+        message: 'El modo llave NFC solo está disponible en Android.',
+      ));
+      return;
+    }
+
+    try {
+      await HceKeyService.instance.activate(uid: user.rfidTag!);
+    } catch (e) {
+      _showResultDialog(NfcAccessOutcome(
+        status: NfcAccessStatus.badRead,
+        title: 'Error',
+        message: 'No se pudo activar el modo llave: $e',
+      ));
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _isKeyMode = true);
+
+    _keyModeTimer?.cancel();
+    _keyModeTimer = Timer(HceKeyService.activationTimeout, () {
+      if (!mounted) return;
+      _deactivateKeyMode();
+      _showResultDialog(NfcAccessOutcome(
+        status: NfcAccessStatus.badRead,
+        title: 'Tiempo agotado',
+        message: 'Modo llave desactivado por inactividad.',
+      ));
+    });
+
+    _showKeyModeActiveSheet();
+  }
+
+  Future<void> _deactivateKeyMode() async {
+    _keyModeTimer?.cancel();
+    await HceKeyService.instance.deactivate();
+    if (!mounted) return;
+    setState(() => _isKeyMode = false);
   }
 
   void _showScanSheet() {
@@ -80,6 +222,60 @@ class _DoorNfcFabState extends State<DoorNfcFab> {
             const LinearProgressIndicator(
               color: AppColors.primary,
               backgroundColor: AppColors.cardBorder,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showKeyModeActiveSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.phonelink_lock_rounded, size: 72, color: AppColors.success)
+                .animate(onPlay: (c) => c.repeat())
+                .shimmer(duration: 1200.ms, color: AppColors.success.withAlpha(128))
+                .scale(
+                  begin: const Offset(0.95, 0.95),
+                  end: const Offset(1.05, 1.05),
+                  duration: 900.ms,
+                  curve: Curves.easeInOut,
+                ),
+            const SizedBox(height: 20),
+            Text(
+              'Modo llave activo',
+              style: Theme.of(ctx).textTheme.titleLarge?.copyWith(color: AppColors.success),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Acerca el teléfono al lector NFC de la puerta para abrir.',
+              textAlign: TextAlign.center,
+              style: Theme.of(ctx).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            const LinearProgressIndicator(
+              color: AppColors.success,
+              backgroundColor: AppColors.cardBorder,
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _deactivateKeyMode();
+              },
+              icon: const Icon(Icons.close_rounded),
+              label: const Text('Desactivar modo llave'),
             ),
           ],
         ),
@@ -128,8 +324,8 @@ class _DoorNfcFabState extends State<DoorNfcFab> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: FloatingActionButton.extended(
-        onPressed: _isScanning ? null : _startDoorScan,
-        backgroundColor: AppColors.primary,
+        onPressed: (_isScanning || _isKeyMode) ? null : _showOptionsSheet,
+        backgroundColor: _isKeyMode ? AppColors.success : AppColors.primary,
         foregroundColor: AppColors.background,
         icon: _isScanning
             ? const SizedBox(
@@ -140,8 +336,10 @@ class _DoorNfcFabState extends State<DoorNfcFab> {
                   color: AppColors.background,
                 ),
               )
-            : const Icon(Icons.nfc_rounded),
-        label: Text(_isScanning ? 'Leyendo…' : 'Puerta NFC'),
+            : Icon(_isKeyMode ? Icons.phonelink_lock_rounded : Icons.nfc_rounded),
+        label: Text(
+          _isScanning ? 'Leyendo…' : _isKeyMode ? 'Llave activa' : 'Puerta NFC',
+        ),
       ),
     );
   }
