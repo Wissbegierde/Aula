@@ -28,6 +28,7 @@ app.get('/health', (req, res) => {
 exports.api = functions
   .runWith({
     secrets: ['SENSOR_API_KEY'],
+    invoker: 'public',
   })
   .https.onRequest(app);
 

@@ -7,11 +7,14 @@ router.post('/validate-nfc', async (req, res) => {
   try {
     const { card_uid } = req.body;
 
+    console.log('[validate-nfc] Raw card_uid:', JSON.stringify(card_uid));
+
     if (!card_uid) {
       return res.status(400).json({ error: 'card_uid is required' });
     }
 
     const normalizedUid = card_uid.trim().toLowerCase();
+    console.log('[validate-nfc] Normalized:', JSON.stringify(normalizedUid));
 
     const usersSnapshot = await db
       .collection('users')
@@ -20,7 +23,10 @@ router.post('/validate-nfc', async (req, res) => {
       .limit(1)
       .get();
 
+    console.log('[validate-nfc] Firestore results:', usersSnapshot.size);
+
     if (usersSnapshot.empty) {
+      console.log('[validate-nfc] No user found for UID:', normalizedUid);
       return res.status(200).json({
         authorized: false,
         message: 'Tarjeta no reconocida o usuario desactivado',
