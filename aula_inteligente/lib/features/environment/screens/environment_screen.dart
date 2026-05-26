@@ -34,79 +34,100 @@ class _EnvironmentScreenState extends State<EnvironmentScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Monitoreo Ambiental')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          SensorCard(
-            title: 'Temperatura',
-            value: current.temperature.toStringAsFixed(1),
-            unit: '°C',
-            icon: Icons.thermostat_rounded,
-            accentColor: AppColors.tempColor,
-            statusLabel: current.temperatureStatus,
-            statusColor: AppColors.tempColor,
-          ).animate().fadeIn(),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: SensorCard(
-                  title: 'Humedad',
-                  value: current.humidity.toStringAsFixed(0),
-                  unit: '%',
-                  icon: Icons.water_drop_rounded,
-                  accentColor: AppColors.humidColor,
-                  statusLabel: current.humidityStatus,
-                  statusColor: AppColors.humidColor,
+      body: provider.hasData && current != null
+          ? ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                SensorCard(
+                  title: 'Temperatura',
+                  value: current.temperature.toStringAsFixed(1),
+                  unit: '°C',
+                  icon: Icons.thermostat_rounded,
+                  accentColor: AppColors.tempColor,
+                  statusLabel: current.temperatureStatus,
+                  statusColor: AppColors.tempColor,
+                ).animate().fadeIn(),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SensorCard(
+                        title: 'Humedad',
+                        value: current.humidity.toStringAsFixed(0),
+                        unit: '%',
+                        icon: Icons.water_drop_rounded,
+                        accentColor: AppColors.humidColor,
+                        statusLabel: current.humidityStatus,
+                        statusColor: AppColors.humidColor,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SensorCard(
+                        title: 'Calidad del Aire',
+                        value: current.airQualityIndex.toString(),
+                        unit: 'AQI',
+                        icon: Icons.air_rounded,
+                        accentColor: AppColors.co2Color,
+                        statusLabel: current.airQualityStatus,
+                        statusColor: AppColors.co2Color,
+                      ),
+                    ),
+                  ],
+                ).animate().fadeIn(delay: 100.ms),
+                if (current.smokeDetected) ...[
+                  const SizedBox(height: 12),
+                  _SafetyBanner(current: current),
+                ],
+                const SizedBox(height: 20),
+                Text('Histórico (24 h)', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                SegmentedButton<int>(
+                  segments: [
+                    ButtonSegment(value: 0, label: Text(segmentLabels[0])),
+                    ButtonSegment(value: 1, label: Text(segmentLabels[1])),
+                    ButtonSegment(value: 2, label: Text(segmentLabels[2])),
+                  ],
+                  selected: {_chartTab},
+                  onSelectionChanged: (s) => setState(() => _chartTab = s.first),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SensorCard(
-                  title: 'Calidad del Aire',
-                  value: current.airQualityIndex.toString(),
-                  unit: 'AQI',
-                  icon: Icons.air_rounded,
-                  accentColor: AppColors.co2Color,
-                  statusLabel: current.airQualityStatus,
-                  statusColor: AppColors.co2Color,
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 220,
+                  child: _SensorChart(
+                    readings: histories[_chartTab],
+                    color: colors[_chartTab],
+                    label: labels[_chartTab],
+                  ),
+                ).animate().fadeIn(delay: 150.ms),
+                const SizedBox(height: 12),
+                Text(
+                  'Actualizado: ${DateFormat('HH:mm:ss').format(current.timestamp)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
                 ),
+              ],
+            )
+          : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.sensors_off_rounded, size: 64, color: AppColors.textMuted),
+                  const SizedBox(height: 16),
+                  const Text('Sin datos del sensor',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  const Text('Esperando la primera lectura...',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                  if (provider.lastError != null) ...[
+                    const SizedBox(height: 16),
+                    Text('Error: ${provider.lastError}',
+                        style: const TextStyle(color: AppColors.danger, fontSize: 11),
+                        textAlign: TextAlign.center),
+                  ],
+                ],
               ),
-            ],
-          ).animate().fadeIn(delay: 100.ms),
-          if (current.smokeDetected) ...[
-            const SizedBox(height: 12),
-            _SafetyBanner(current: current),
-          ],
-          const SizedBox(height: 20),
-          Text('Histórico (24 h)', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          SegmentedButton<int>(
-            segments: [
-              ButtonSegment(value: 0, label: Text(segmentLabels[0])),
-              ButtonSegment(value: 1, label: Text(segmentLabels[1])),
-              ButtonSegment(value: 2, label: Text(segmentLabels[2])),
-            ],
-            selected: {_chartTab},
-            onSelectionChanged: (s) => setState(() => _chartTab = s.first),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 220,
-            child: _SensorChart(
-              readings: histories[_chartTab],
-              color: colors[_chartTab],
-              label: labels[_chartTab],
             ),
-          ).animate().fadeIn(delay: 150.ms),
-          const SizedBox(height: 12),
-          Text(
-            'Actualizado: ${DateFormat('HH:mm:ss').format(current.timestamp)}',
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 }

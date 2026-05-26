@@ -19,7 +19,7 @@ class EnergyScreen extends StatelessWidget {
     final currentKw = provider.currentPowerKw;
     final todayKwh = provider.todayConsumptionKwh;
     final monthKwh = provider.monthConsumptionKwh;
-    final usagePercent = (todayKwh / 15).clamp(0.0, 1.0);
+    final usagePercent = provider.hasData ? (todayKwh / 15).clamp(0.0, 1.0) : 0.0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Consumo Energético')),
@@ -102,6 +102,12 @@ class EnergyScreen extends StatelessWidget {
             height: 220,
             child: _EnergyChart(history: history),
           ).animate().fadeIn(delay: 150.ms),
+          if (!provider.hasData)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Sin datos de consumo energético',
+                  style: TextStyle(color: AppColors.textMuted)),
+            ),
           const SizedBox(height: 16),
           GradientCard(
             child: Column(
@@ -167,6 +173,9 @@ class _EnergyChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (history.isEmpty) {
+      return const Center(child: Text('Sin datos'));
+    }
     final spots = history.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), e.value.kwh);
     }).toList();

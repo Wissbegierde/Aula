@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../../../core/constants/app_config.dart';
 import '../../../core/services/api_client.dart';
@@ -8,35 +7,19 @@ import '../models/energy_model.dart';
 class EnergyProvider extends ChangeNotifier {
   final ApiClient _api;
   List<EnergyReading> _history = [];
-  double _currentPowerKw = 1.24;
+  double _currentPowerKw = 0;
   Timer? _timer;
-  final Random _rng = Random();
-  bool _useMock = true;
+  bool _hasData = false;
 
   List<EnergyReading> get history => List.unmodifiable(_history);
   double get currentPowerKw => _currentPowerKw;
-  double get todayConsumptionKwh {
-    if (_history.isEmpty) return 8.7;
-    return _history.fold(0.0, (sum, r) => sum + r.kwh);
-  }
+  bool get hasData => _hasData;
+  double get todayConsumptionKwh => _history.fold(0.0, (sum, r) => sum + r.kwh);
   double get monthConsumptionKwh => todayConsumptionKwh * 30;
 
   EnergyProvider(this._api) {
-    _generateMockHistory();
     _fetchData();
     _timer = Timer.periodic(AppConfig.sensorPollInterval, (_) => _fetchData());
-  }
-
-  void _generateMockHistory() {
-    final now = DateTime.now();
-    _history = List.generate(24, (i) {
-      final hour = now.subtract(Duration(hours: 23 - i));
-      final base = 0.8 + (i % 8) * 0.15;
-      return EnergyReading(
-        time: hour,
-        kwh: double.parse((base + (i % 3) * 0.2).toStringAsFixed(2)),
-      );
-    });
   }
 
   Future<void> _fetchData() async {
@@ -62,9 +45,8 @@ class EnergyProvider extends ChangeNotifier {
             );
           }).toList();
           _currentPowerKw = _history.last.kwh;
-          _useMock = false;
+          _hasData = true;
           notifyListeners();
-          return;
         }
       }
     } catch (e) {

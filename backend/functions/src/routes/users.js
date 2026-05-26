@@ -1,10 +1,10 @@
 const express = require('express');
 const { db, auth, Timestamp } = require('../services/firebase');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateTokenOrApiKey, requireRole } = require('../middleware/authOrApiKey');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
+router.get('/', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
   try {
     const snapshot = await db.collection('users').get();
     const users = snapshot.docs.map((doc) => ({
@@ -19,7 +19,7 @@ router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
   }
 });
 
-router.get('/:userId', authenticateToken, requireRole('admin'), async (req, res) => {
+router.get('/:userId', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
   try {
     const { userId } = req.params;
     const doc = await db.collection('users').doc(userId).get();
@@ -37,7 +37,7 @@ router.get('/:userId', authenticateToken, requireRole('admin'), async (req, res)
   }
 });
 
-router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
+router.post('/', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
   try {
     const { name, role, card_uid, email } = req.body;
 
@@ -81,7 +81,7 @@ router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
   }
 });
 
-router.patch('/:userId', authenticateToken, requireRole('admin'), async (req, res) => {
+router.patch('/:userId', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
   try {
     const { userId } = req.params;
     const updates = {};
@@ -107,7 +107,7 @@ router.patch('/:userId', authenticateToken, requireRole('admin'), async (req, re
   }
 });
 
-router.delete('/:userId', authenticateToken, requireRole('admin'), async (req, res) => {
+router.delete('/:userId', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
   try {
     const { userId } = req.params;
     await db.collection('users').doc(userId).delete();

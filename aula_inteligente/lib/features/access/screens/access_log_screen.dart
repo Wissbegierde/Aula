@@ -49,6 +49,7 @@ class AccessLogScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AccessProvider>();
     final logs = provider.logs;
+    final hasData = provider.hasData;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
 
     return Scaffold(
@@ -98,7 +99,19 @@ class AccessLogScreen extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView.separated(
+            child: hasData && logs.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.history_rounded, size: 48, color: AppColors.textMuted),
+                        SizedBox(height: 8),
+                        Text('Sin registros de acceso',
+                            style: TextStyle(color: AppColors.textMuted)),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: logs.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),

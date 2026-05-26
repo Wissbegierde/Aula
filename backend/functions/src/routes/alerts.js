@@ -1,10 +1,10 @@
 const express = require('express');
 const { db, Timestamp } = require('../services/firebase');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateTokenOrApiKey } = require('../middleware/authOrApiKey');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { classroom_id, resolved } = req.query;
 
@@ -33,7 +33,7 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-router.patch('/:alertId/resolve', authenticateToken, async (req, res) => {
+router.patch('/:alertId/resolve', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { alertId } = req.params;
     const { resolved_by } = req.body;

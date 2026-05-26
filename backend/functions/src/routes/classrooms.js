@@ -1,10 +1,10 @@
 const express = require('express');
 const { db, Timestamp } = require('../services/firebase');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateTokenOrApiKey, requireRole } = require('../middleware/authOrApiKey');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const snapshot = await db.collection('classrooms').get();
     const classrooms = snapshot.docs.map((doc) => ({
@@ -19,7 +19,7 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-router.get('/:classroomId', authenticateToken, async (req, res) => {
+router.get('/:classroomId', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { classroomId } = req.params;
     const doc = await db.collection('classrooms').doc(classroomId).get();
@@ -37,7 +37,7 @@ router.get('/:classroomId', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
+router.post('/', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
   try {
     const { name, location } = req.body;
 
@@ -64,7 +64,7 @@ router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
   }
 });
 
-router.patch('/:classroomId', authenticateToken, requireRole('admin'), async (req, res) => {
+router.patch('/:classroomId', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
   try {
     const { classroomId } = req.params;
     const updates = {};
@@ -83,7 +83,7 @@ router.patch('/:classroomId', authenticateToken, requireRole('admin'), async (re
   }
 });
 
-router.delete('/:classroomId', authenticateToken, requireRole('admin'), async (req, res) => {
+router.delete('/:classroomId', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
   try {
     const { classroomId } = req.params;
     await db.collection('classrooms').doc(classroomId).delete();

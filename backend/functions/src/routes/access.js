@@ -1,10 +1,10 @@
 const express = require('express');
 const { db, Timestamp, FieldValue } = require('../services/firebase');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateTokenOrApiKey, requireRole } = require('../middleware/authOrApiKey');
 
 const router = express.Router();
 
-router.post('/open', authenticateToken, async (req, res) => {
+router.post('/open', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { classroom_id, card_uid } = req.body;
 
@@ -63,7 +63,7 @@ router.post('/open', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/close', authenticateToken, async (req, res) => {
+router.post('/close', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { classroom_id, card_uid } = req.body;
 
@@ -122,7 +122,7 @@ router.post('/close', authenticateToken, async (req, res) => {
   }
 });
 
-router.get('/logs', authenticateToken, async (req, res) => {
+router.get('/logs', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { classroom_id, from, to, limit: queryLimit = 50 } = req.query;
 

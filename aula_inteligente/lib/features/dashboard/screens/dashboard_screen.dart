@@ -21,7 +21,8 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
-    final env = context.watch<EnvironmentProvider>().current;
+    final envProvider = context.watch<EnvironmentProvider>();
+    final env = envProvider.current;
     final access = context.watch<AccessProvider>();
     final alerts = context.watch<AlertsProvider>();
     final dashboard = context.watch<DashboardProvider>();
@@ -102,43 +103,66 @@ class DashboardScreen extends StatelessWidget {
 
             Text('Sensores en vivo', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: SensorCard(
-                    title: 'Temperatura',
-                    value: env.temperature.toStringAsFixed(1),
-                    unit: '°C',
-                    icon: Icons.thermostat_rounded,
-                    accentColor: AppColors.tempColor,
-                    statusLabel: env.temperatureStatus,
-                    statusColor: AppColors.tempColor,
+            envProvider.hasData && env != null
+                ? Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SensorCard(
+                              title: 'Temperatura',
+                              value: env.temperature.toStringAsFixed(1),
+                              unit: '°C',
+                              icon: Icons.thermostat_rounded,
+                              accentColor: AppColors.tempColor,
+                              statusLabel: env.temperatureStatus,
+                              statusColor: AppColors.tempColor,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SensorCard(
+                              title: 'Humedad',
+                              value: env.humidity.toStringAsFixed(0),
+                              unit: '%',
+                              icon: Icons.water_drop_rounded,
+                              accentColor: AppColors.humidColor,
+                              statusLabel: env.humidityStatus,
+                              statusColor: AppColors.humidColor,
+                            ),
+                          ),
+                        ],
+                      ).animate().fadeIn(delay: 100.ms),
+                      const SizedBox(height: 12),
+                      SensorCard(
+                        title: 'Calidad del Aire',
+                        value: env.airQualityIndex.toString(),
+                        unit: 'AQI',
+                        icon: Icons.air_rounded,
+                        accentColor: AppColors.co2Color,
+                        statusLabel: env.airQualityStatus,
+                        statusColor: AppColors.co2Color,
+                      ).animate().fadeIn(delay: 150.ms),
+                    ],
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          const Text('Sin datos del sensor',
+                              style: TextStyle(color: AppColors.textMuted)),
+                          if (envProvider.lastError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text('Error: ${envProvider.lastError}',
+                                  style: const TextStyle(color: AppColors.danger, fontSize: 11),
+                                  textAlign: TextAlign.center),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SensorCard(
-                    title: 'Humedad',
-                    value: env.humidity.toStringAsFixed(0),
-                    unit: '%',
-                    icon: Icons.water_drop_rounded,
-                    accentColor: AppColors.humidColor,
-                    statusLabel: env.humidityStatus,
-                    statusColor: AppColors.humidColor,
-                  ),
-                ),
-              ],
-            ).animate().fadeIn(delay: 100.ms),
-            const SizedBox(height: 12),
-            SensorCard(
-              title: 'Calidad del Aire',
-              value: env.airQualityIndex.toString(),
-              unit: 'AQI',
-              icon: Icons.air_rounded,
-              accentColor: AppColors.co2Color,
-              statusLabel: env.airQualityStatus,
-              statusColor: AppColors.co2Color,
-            ).animate().fadeIn(delay: 150.ms),
             const SizedBox(height: 20),
             Text('Acceso reciente', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),

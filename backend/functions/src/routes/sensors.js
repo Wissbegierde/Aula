@@ -1,6 +1,6 @@
 const express = require('express');
 const { db, Timestamp } = require('../services/firebase');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateTokenOrApiKey } = require('../middleware/authOrApiKey');
 const { authenticateApiKey } = require('../middleware/apiKey');
 const { SENSOR_THRESHOLDS, ALERT_TYPES } = require('../config');
 
@@ -40,7 +40,7 @@ router.post('/reading', authenticateApiKey, async (req, res) => {
   }
 });
 
-router.get('/latest', authenticateToken, async (req, res) => {
+router.get('/latest', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { classroom_id } = req.query;
 
@@ -75,7 +75,7 @@ router.get('/latest', authenticateToken, async (req, res) => {
   }
 });
 
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { classroom_id, from, to, limit: queryLimit = 100 } = req.query;
 

@@ -5,7 +5,9 @@ import '../../../core/services/api_client.dart';
 
 class DashboardProvider extends ChangeNotifier {
   final ApiClient _api;
-  int _occupancy = 14;
+  int _occupancy = 0;
+  bool? _lightsOn;
+  String? _status;
   final String classroomName;
   Timer? _timer;
 
@@ -15,6 +17,8 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   int get occupancy => _occupancy;
+  bool? get lightsOn => _lightsOn;
+  String? get status => _status;
 
   Future<void> _fetchStatus() async {
     try {
@@ -23,13 +27,14 @@ class DashboardProvider extends ChangeNotifier {
       );
       final classroom = data['classroom'] as Map<String, dynamic>?;
       if (classroom != null) {
+        _status = classroom['current_status'] as String?;
+        _lightsOn = classroom['lights_on'] as bool?;
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Error fetching classroom status: $e');
     }
   }
-
 
   void setOccupancy(int value) {
     _occupancy = value;
