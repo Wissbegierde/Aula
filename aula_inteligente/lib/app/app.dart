@@ -33,6 +33,7 @@ class _AulaInteligenteAppState extends State<AulaInteligenteApp> {
       baseUrl: AppConfig.apiBaseUrl,
       apiKey: AppConfig.apiKey,
     );
+    _authProvider.setApiClient(_apiClient);
     NfcAccessService.instance.setApiClient(_apiClient);
     _router = createRouter(_authProvider);
   }

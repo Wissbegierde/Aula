@@ -126,30 +126,38 @@ router.get('/logs', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { classroom_id, from, to, limit: queryLimit = 50 } = req.query;
 
-    let query = db.collection('access_logs').orderBy('timestamp', 'desc');
+    const snapshot = await db.collection('access_logs').get();
+    let docs = snapshot.docs;
+
+    // Sort in memory by timestamp desc
+    docs.sort((a, b) => {
+      const tA = a.data().timestamp?.toDate() || new Date(0);
+      const tB = b.data().timestamp?.toDate() || new Date(0);
+      return tB - tA;
+    });
 
     if (classroom_id) {
-      query = query.where('classroom_id', '==', classroom_id);
+      docs = docs.filter(doc => doc.data().classroom_id === classroom_id);
     }
 
     if (from) {
       const fromDate = new Date(from);
-      query = query.where('timestamp', '>=', Timestamp.fromDate(fromDate));
+      docs = docs.filter(doc => doc.data().timestamp?.toDate() >= fromDate);
     }
 
     if (to) {
       const toDate = new Date(to);
-      query = query.where('timestamp', '<=', Timestamp.fromDate(toDate));
+      docs = docs.filter(doc => doc.data().timestamp?.toDate() <= toDate);
     }
 
-    if (!req.user.role === 'admin') {
-      query = query.where('user_id', '==', req.user.uid);
+    if (req.user.role !== 'admin') {
+      docs = docs.filter(doc => doc.data().user_id === req.user.uid);
     }
 
-    query = query.limit(parseInt(queryLimit, 10));
+    // Apply limit
+    const limitedDocs = docs.slice(0, parseInt(queryLimit, 10));
 
-    const snapshot = await query.get();
-    const logs = snapshot.docs.map((doc) => ({
+    const logs = limitedDocs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       timestamp: doc.data().timestamp?.toDate().toISOString(),

@@ -42,6 +42,11 @@ dependencies:
   # Environment Variables
   flutter_dotenv: ^5.2.1
 
+  # Device Token (registro de celular como llave)
+  shared_preferences: ^2.3.2
+  uuid: ^4.4.0
+  device_info_plus: ^10.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -52,6 +57,7 @@ flutter:
 
   assets:
     - .env
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

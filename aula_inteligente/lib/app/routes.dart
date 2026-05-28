@@ -4,6 +4,7 @@ import '../features/access/screens/access_log_screen.dart';
 import '../features/alerts/screens/alerts_screen.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/login_screen.dart';
+import '../features/auth/screens/profile_screen.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/energy/screens/energy_screen.dart';
@@ -36,6 +37,10 @@ GoRouter createRouter(AuthProvider authProvider) {
       GoRoute(
         path: '/login',
         builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (_, __) => const ProfileScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

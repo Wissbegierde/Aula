@@ -42,7 +42,7 @@ class SensorData {
     return SensorData(
       temperature: (map['temperature'] ?? 0.0).toDouble(),
       humidity: (map['humidity'] ?? 0.0).toDouble(),
-      airQualityIndex: (map['air_quality_index'] ?? 0).toInt(),
+      airQualityIndex: (map['air_quality_index'] ?? 0.0).toDouble(),
       smokeDetected: map['smoke_detected'] ?? false,
       powerConsumptionWatts: (map['power_consumption_watts'] ?? 0).toDouble(),
       timestamp: DateTime.tryParse(map['timestamp'] ?? '') ?? DateTime.now(),

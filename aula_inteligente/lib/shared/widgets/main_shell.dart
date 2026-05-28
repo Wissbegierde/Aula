@@ -19,7 +19,8 @@ class MainShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().currentUser;
+    final auth = context.watch<AuthProvider>();
+    final user = auth.currentUser;
     final role = user?.role;
 
     final destinations = <_NavItem>[
@@ -29,13 +30,62 @@ class MainShell extends StatelessWidget {
       const _NavItem(icon: Icons.badge_rounded, label: 'Accesos', index: 2),
       if (_canAccessEnergy(role))
         const _NavItem(icon: Icons.bolt_rounded, label: 'Energía', index: 3),
-      const _NavItem(icon: Icons.notifications_rounded, label: 'Alertas', index: 4),
+      const _NavItem(
+          icon: Icons.notifications_rounded, label: 'Alertas', index: 4),
     ];
 
     final currentIndex = navigationShell.currentIndex;
-    final visibleIndex = destinations.indexWhere((d) => d.index == currentIndex);
+    final visibleIndex =
+        destinations.indexWhere((d) => d.index == currentIndex);
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            const Icon(Icons.school_rounded,
+                color: AppColors.primary, size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'Aula Inteligente',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+            ),
+          ],
+        ),
+        actions: [
+          // Botón de perfil con avatar
+          GestureDetector(
+            onTap: () => context.push('/profile'),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppColors.primaryGradient,
+                border: Border.all(color: AppColors.primary, width: 1.5),
+              ),
+              child: Center(
+                child: Text(
+                  user?.name.isNotEmpty == true
+                      ? user!.name[0].toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: navigationShell,
       floatingActionButton: const DoorNfcFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

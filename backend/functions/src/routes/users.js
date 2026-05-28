@@ -19,9 +19,15 @@ router.get('/', authenticateTokenOrApiKey, requireRole('admin'), async (req, res
   }
 });
 
-router.get('/:userId', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
+router.get('/:userId', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { userId } = req.params;
+
+    // Allow if admin or if the user is fetching their own profile
+    if (req.user.role !== 'admin' && req.user.uid !== userId) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
     const doc = await db.collection('users').doc(userId).get();
 
     if (!doc.exists) {
@@ -81,9 +87,15 @@ router.post('/', authenticateTokenOrApiKey, requireRole('admin'), async (req, re
   }
 });
 
-router.patch('/:userId', authenticateTokenOrApiKey, requireRole('admin'), async (req, res) => {
+router.patch('/:userId', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { userId } = req.params;
+
+    // Allow if admin or if the user is updating their own profile
+    if (req.user.role !== 'admin' && req.user.uid !== userId) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
     const updates = {};
 
     if (req.body.name !== undefined) updates.name = req.body.name;
@@ -97,6 +109,8 @@ router.patch('/:userId', authenticateTokenOrApiKey, requireRole('admin'), async 
     if (req.body.card_uid !== undefined) updates.card_uid = req.body.card_uid.trim().toLowerCase();
     if (req.body.email !== undefined) updates.email = req.body.email;
     if (req.body.active !== undefined) updates.active = req.body.active;
+    if (req.body.device_tokens !== undefined) updates.device_tokens = req.body.device_tokens;
+    if (req.body.registered_devices !== undefined) updates.registered_devices = req.body.registered_devices;
 
     await db.collection('users').doc(userId).update(updates);
 

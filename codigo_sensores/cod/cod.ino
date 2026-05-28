@@ -1,6 +1,10 @@
 #include <Wire.h>
 #include <Adafruit_AHTX0.h>
-#include <Adafruit_PN532.h>
+// Cambio: Adafruit_PN532 NO soporta correctamente HCE de Android en
+// modulos PN532 con firmware v1.6 (clones rojos). Usamos la libreria
+// de elechouse/Seeed que maneja correctamente la activacion ISO-DEP.
+#include <PN532_I2C.h>
+#include <PN532.h>
 #include <ESP32Servo.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -9,14 +13,14 @@
 // ========================
 // WiFi Configuration
 // ========================
-#define WIFI_SSID "your_wifi_ssid"
-#define WIFI_PASS "your_wifi_password"
+#define WIFI_SSID "WILSON"
+#define WIFI_PASS "W91275990"
 
 // ========================
 // Backend Configuration
 // ========================
 #define API_BASE_URL "https://us-central1-aula-inteligente-30639.cloudfunctions.net/api"
-#define API_KEY "aula-sensor-key-2024"
+#define API_KEY "e41c939b3478cefcdff9aae786541377d86fd45ca0134e69da97224c66cafe9c"
 #define CLASSROOM_ID "aula-201-edificio-b"
 
 // ========================
@@ -30,7 +34,8 @@ Adafruit_AHTX0 aht;
 #define SDA_PIN 21
 #define SCL_PIN 22
 
-Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
+PN532_I2C pn532i2c(Wire);
+PN532 nfc(pn532i2c);
 
 // ========================
 // MQ2
@@ -63,6 +68,8 @@ Servo miServo;
 #define SENSOR_INTERVAL_MS 60000  // Enviar datos cada 60s
 
 unsigned long ultimoEnvio = 0;
+unsigned long ultimaLecturaSensores = 0;
+#define SENSOR_READ_INTERVAL_MS 5000
 
 void setup() {
   Serial.begin(115200);
@@ -142,37 +149,34 @@ void setup() {
 void loop() {
   unsigned long ahora = millis();
 
-  // ========================
-  // Leer sensores
-  // ========================
-  float temperatura = leerAHT20();
-  float humedad = leerAHT20Humedad();
-  int mq2Digital = leerMQ2Digital();
-  int mq2Analog = leerMQ2Analogico();
-  float potenciaWatts = leerACS712();
-  int calidadAire = calcularCalidadAire(mq2Analog);
+  // Leer y reportar sensores de forma no bloqueante cada 5 segundos
+  if (ahora - ultimaLecturaSensores >= SENSOR_READ_INTERVAL_MS) {
+    ultimaLecturaSensores = ahora;
 
-  // ========================
-  // NFC + Servo
-  // ========================
-  leerPN532yControlServo();
+    float temperatura = leerAHT20();
+    float humedad = leerAHT20Humedad();
+    int mq2Digital = leerMQ2Digital();
+    int mq2Analog = leerMQ2Analogico();
+    float potenciaWatts = leerACS712();
+    int calidadAire = calcularCalidadAire(mq2Analog);
 
-  // ========================
-  // Enviar datos al backend
-  // ========================
-  if (ahora - ultimoEnvio >= SENSOR_INTERVAL_MS) {
-    ultimoEnvio = ahora;
+    Serial.println("==================================");
 
-    if (WiFi.status() == WL_CONNECTED) {
-      enviarLectura(temperatura, humedad, mq2Digital == LOW, potenciaWatts, calidadAire);
-    } else {
-      Serial.println("[WIFI] No conectado - reintentando conexion...");
-      WiFi.reconnect();
+    // Enviar datos al backend cada 60s
+    if (ahora - ultimoEnvio >= SENSOR_INTERVAL_MS) {
+      ultimoEnvio = ahora;
+
+      if (WiFi.status() == WL_CONNECTED) {
+        enviarLectura(temperatura, humedad, mq2Digital == LOW, potenciaWatts, calidadAire);
+      } else {
+        Serial.println("[WIFI] No conectado - reintentando conexion...");
+        WiFi.reconnect();
+      }
     }
   }
 
-  Serial.println("==================================");
-  delay(2000);
+  // NFC se ejecuta de forma casi instantanea en cada ciclo de loop sin trabar el sistema
+  leerPN532yControlServo();
 }
 
 // ========================
@@ -274,11 +278,14 @@ void leerPN532yControlServo() {
   uint8_t uid[7];
   uint8_t uidLength;
 
+  // Timeout mas amplio: los telefonos Android en HCE pueden tardar mas
+  // que una tarjeta MIFARE en presentarse, sobre todo si la pantalla
+  // estaba apagada milisegundos antes.
   success = nfc.readPassiveTargetID(
     PN532_MIFARE_ISO14443A,
     uid,
     &uidLength,
-    1000);
+    500);
 
   if (!success) {
     Serial.println("[NFC]   Sin tarjeta");
@@ -351,22 +358,48 @@ String leerHceUid() {
   uint8_t responseLength;
 
   // SELECT AID = F000000001 (proprietario Aula Inteligente)
+  // Se incluye Le=0x00 al final para asegurar compatibilidad con HCE
+  // de Android (algunas implementaciones exigen APDU case 4).
   uint8_t selectApdu[] = {
-    0x00, 0xA4, 0x04, 0x00, 0x07,
-    0xF0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00
+    0x00, 0xA4, 0x04, 0x00, 0x05,
+    0xF0, 0x00, 0x00, 0x00, 0x01,
+    0x00
   };
 
-  responseLength = sizeof(response);
-  bool ok = nfc.inDataExchange(selectApdu, sizeof(selectApdu), response, &responseLength);
+  // Importante: NO insertar delay aqui. El PN532 ya tiene activado el
+  // target ISO-DEP justo despues de readPassiveTargetID. Una pausa larga
+  // hace que algunos telefonos pierdan la activacion HCE.
+
+  bool ok = false;
+  int reintentos = 4;
+
+  for (int i = 0; i < reintentos; i++) {
+    responseLength = sizeof(response);
+    ok = nfc.inDataExchange(selectApdu, sizeof(selectApdu), response, &responseLength);
+    if (ok && responseLength >= 2) {
+      break;
+    }
+    Serial.print("[HCE]   intento ");
+    Serial.print(i + 1);
+    Serial.print(": ok=");
+    Serial.print(ok);
+    Serial.print(" len=");
+    Serial.println(responseLength);
+    delay(20);
+  }
 
   if (!ok || responseLength < 2) {
-    Serial.println("[HCE]   No responde a APDU - tarjeta comun");
+    Serial.println("[HCE]   No responde a APDU - tarjeta comun o HCE inactivo");
     return "";
   }
 
   // Verificar status word (0x9000)
   if (response[responseLength - 2] != 0x90 || response[responseLength - 1] != 0x00) {
-    Serial.println("[HCE]   SELECT AID rechazado");
+    Serial.print("[HCE]   SELECT AID rechazado, SW=");
+    if (response[responseLength - 2] < 0x10) Serial.print("0");
+    Serial.print(response[responseLength - 2], HEX);
+    if (response[responseLength - 1] < 0x10) Serial.print("0");
+    Serial.println(response[responseLength - 1], HEX);
     return "";
   }
 

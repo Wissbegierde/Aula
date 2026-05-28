@@ -8,18 +8,26 @@ router.get('/', authenticateTokenOrApiKey, async (req, res) => {
   try {
     const { classroom_id, resolved } = req.query;
 
-    let query = db.collection('alerts').orderBy('timestamp', 'desc');
+    const snapshot = await db.collection('alerts').get();
+    let docs = snapshot.docs;
+
+    // Sort in memory by timestamp desc
+    docs.sort((a, b) => {
+      const tA = a.data().timestamp?.toDate() || new Date(0);
+      const tB = b.data().timestamp?.toDate() || new Date(0);
+      return tB - tA;
+    });
 
     if (classroom_id) {
-      query = query.where('classroom_id', '==', classroom_id);
+      docs = docs.filter(doc => doc.data().classroom_id === classroom_id);
     }
 
     if (resolved !== undefined) {
-      query = query.where('resolved', '==', resolved === 'true');
+      const targetResolved = resolved === 'true';
+      docs = docs.filter(doc => doc.data().resolved === targetResolved);
     }
 
-    const snapshot = await query.get();
-    const alerts = snapshot.docs.map((doc) => ({
+    const alerts = docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       timestamp: doc.data().timestamp?.toDate().toISOString(),

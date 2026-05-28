@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/services/device_token_service.dart';
 import '../../core/services/hce_key_service.dart';
 import '../../core/services/nfc_access_service.dart';
 import '../../features/access/models/nfc_access_status.dart';
@@ -130,15 +132,27 @@ class _DoorNfcFabState extends State<DoorNfcFab> {
   Future<void> _activateKeyMode() async {
     final auth = context.read<AuthProvider>();
     final user = auth.currentUser;
-    if (user?.rfidTag == null || user!.rfidTag!.isEmpty) {
+
+    // 1. Verificar que el usuario tiene un rfidTag asociado
+    final rfid = user?.rfidTag;
+    if (rfid == null || rfid.isEmpty) {
       _showResultDialog(NfcAccessOutcome(
         status: NfcAccessStatus.denied,
-        title: 'Sin llave',
+        title: 'Sin acceso NFC',
         message: 'Tu cuenta no tiene un UID NFC asociado. Contacta al administrador.',
       ));
       return;
     }
 
+    // 2. Verificar que este celular está registrado
+    final isRegistered = await DeviceTokenService.instance.isRegistered;
+    if (!isRegistered) {
+      if (!mounted) return;
+      _showDeviceNotRegisteredDialog();
+      return;
+    }
+
+    // 3. Verificar soporte HCE
     final supported = await HceKeyService.instance.isHceSupported;
     if (!supported) {
       _showResultDialog(NfcAccessOutcome(
@@ -149,8 +163,9 @@ class _DoorNfcFabState extends State<DoorNfcFab> {
       return;
     }
 
+    // 4. Activar con el deviceToken (no con el rfidTag)
     try {
-      await HceKeyService.instance.activate(uid: user.rfidTag!);
+      await HceKeyService.instance.activateWithDeviceToken();
     } catch (e) {
       _showResultDialog(NfcAccessOutcome(
         status: NfcAccessStatus.badRead,
@@ -175,6 +190,48 @@ class _DoorNfcFabState extends State<DoorNfcFab> {
     });
 
     _showKeyModeActiveSheet();
+  }
+
+  void _showDeviceNotRegisteredDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppColors.warning.withAlpha(128)),
+        ),
+        icon: const Icon(Icons.phone_android_rounded,
+            color: AppColors.warning, size: 48),
+        title: const Text(
+          'Celular no registrado',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'Para usar tu teléfono como llave NFC, primero regístralo en tu perfil.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              if (mounted) context.push('/profile');
+            },
+            icon: const Icon(Icons.person_rounded),
+            label: const Text('Ir a perfil'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.background,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _deactivateKeyMode() async {

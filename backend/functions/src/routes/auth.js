@@ -16,20 +16,31 @@ router.post('/validate-nfc', async (req, res) => {
     const normalizedUid = card_uid.trim().toLowerCase();
     console.log('[validate-nfc] Normalized:', JSON.stringify(normalizedUid));
 
-    const usersSnapshot = await db
+    let usersSnapshot = await db
       .collection('users')
       .where('card_uid', '==', normalizedUid)
       .where('active', '==', true)
       .limit(1)
       .get();
 
-    console.log('[validate-nfc] Firestore results:', usersSnapshot.size);
+    console.log('[validate-nfc] Firestore card_uid results:', usersSnapshot.size);
 
     if (usersSnapshot.empty) {
-      console.log('[validate-nfc] No user found for UID:', normalizedUid);
+      console.log('[validate-nfc] Checking device_tokens for:', normalizedUid);
+      usersSnapshot = await db
+        .collection('users')
+        .where('device_tokens', 'array-contains', normalizedUid)
+        .where('active', '==', true)
+        .limit(1)
+        .get();
+      console.log('[validate-nfc] Firestore device_tokens results:', usersSnapshot.size);
+    }
+
+    if (usersSnapshot.empty) {
+      console.log('[validate-nfc] No user found for UID or device token:', normalizedUid);
       return res.status(200).json({
         authorized: false,
-        message: 'Tarjeta no reconocida o usuario desactivado',
+        message: 'Tarjeta o celular no reconocido o usuario desactivado',
       });
     }
 

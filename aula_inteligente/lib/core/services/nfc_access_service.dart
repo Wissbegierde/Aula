@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import '../../features/access/models/nfc_access_status.dart';
 import '../../features/auth/providers/auth_provider.dart';
-import '../constants/app_config.dart';
 import 'api_client.dart';
 
 class NfcAccessService {
