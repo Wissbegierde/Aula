@@ -253,7 +253,7 @@ float leerACS712() {
   float promedio = suma / (float)muestras;
   float voltaje = (promedio / ADC_RES) * VREF;
   float corriente = (voltaje - (ACS712_VCC / 2.0)) / ACS712_SENSITIVITY;
-  if (corriente < 0) corriente = 0;
+
 
   Serial.print("[ACS712] ADC: ");
   Serial.print(promedio, 1);
