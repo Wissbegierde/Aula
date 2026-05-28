@@ -444,7 +444,7 @@ bool validarNfcConBackend(String uid) {
   http.addHeader("Content-Type", "application/json");
   http.addHeader("x-api-key", API_KEY);
 
-  String payload = "{\"card_uid\":\"" + uid + "\"}";
+  String payload = "{\"card_uid\":\"" + uid + "\",\"classroom_id\":\"" + CLASSROOM_ID + "\"}";
   int codigo = http.POST(payload);
 
   if (codigo == 200) {

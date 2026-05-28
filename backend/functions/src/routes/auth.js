@@ -1,5 +1,5 @@
 const express = require('express');
-const { db } = require('../services/firebase');
+const { db, Timestamp } = require('../services/firebase');
 
 const router = express.Router();
 
@@ -46,6 +46,19 @@ router.post('/validate-nfc', async (req, res) => {
 
     const userDoc = usersSnapshot.docs[0];
     const userData = userDoc.data();
+
+    const classroom_id = req.body.classroom_id;
+    if (classroom_id) {
+      await db.collection('access_logs').add({
+        classroom_id,
+        user_id: userDoc.id,
+        user_name: userData.name,
+        role: userData.role,
+        action: 'open',
+        granted: true,
+        timestamp: Timestamp.now(),
+      });
+    }
 
     return res.status(200).json({
       authorized: true,
