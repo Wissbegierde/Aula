@@ -3,7 +3,7 @@ class SensorData {
   final double humidity;
   final double airQualityIndex;
   final bool smokeDetected;
-  final double? powerConsumptionWatts;
+  final double? currentA;
   final DateTime timestamp;
 
   const SensorData({
@@ -11,7 +11,7 @@ class SensorData {
     required this.humidity,
     required this.airQualityIndex,
     required this.smokeDetected,
-    this.powerConsumptionWatts,
+    this.currentA,
     required this.timestamp,
   });
 
@@ -44,7 +44,7 @@ class SensorData {
       humidity: (map['humidity'] ?? 0.0).toDouble(),
       airQualityIndex: (map['air_quality_index'] ?? 0.0).toDouble(),
       smokeDetected: map['smoke_detected'] ?? false,
-      powerConsumptionWatts: (map['power_consumption_watts'] ?? 0).toDouble(),
+      currentA: (map['current_a'] ?? 0).toDouble(),
       timestamp: DateTime.tryParse(map['timestamp'] ?? '') ?? DateTime.now(),
     );
   }
@@ -54,7 +54,7 @@ class SensorData {
         'humidity': humidity,
         'airQualityIndex': airQualityIndex,
         'smokeDetected': smokeDetected,
-        'powerConsumptionWatts': powerConsumptionWatts,
+        'currentA': currentA,
         'timestamp': timestamp.toIso8601String(),
       };
 }

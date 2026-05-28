@@ -7,15 +7,13 @@ import '../models/energy_model.dart';
 class EnergyProvider extends ChangeNotifier {
   final ApiClient _api;
   List<EnergyReading> _history = [];
-  double _currentPowerKw = 0;
+  double _currentA = 0;
   Timer? _timer;
   bool _hasData = false;
 
   List<EnergyReading> get history => List.unmodifiable(_history);
-  double get currentPowerKw => _currentPowerKw;
+  double get currentA => _currentA;
   bool get hasData => _hasData;
-  double get todayConsumptionKwh => _history.fold(0.0, (sum, r) => sum + r.kwh);
-  double get monthConsumptionKwh => todayConsumptionKwh * 30;
 
   EnergyProvider(this._api) {
     _fetchData();
@@ -33,18 +31,18 @@ class EnergyProvider extends ChangeNotifier {
       );
       final readings = data['readings'] as List<dynamic>?;
       if (readings != null && readings.isNotEmpty) {
-        final powerReadings = readings
+        final currentReadings = readings
             .map((r) => r as Map<String, dynamic>)
-            .where((r) => r['power_consumption_watts'] != null)
+            .where((r) => r['current_a'] != null)
             .toList();
-        if (powerReadings.isNotEmpty) {
-          _history = powerReadings.map((r) {
+        if (currentReadings.isNotEmpty) {
+          _history = currentReadings.map((r) {
             return EnergyReading(
               time: DateTime.tryParse(r['timestamp'] ?? '') ?? DateTime.now(),
-              kwh: ((r['power_consumption_watts'] as num).toDouble() / 1000.0),
+              currentA: (r['current_a'] as num).toDouble(),
             );
           }).toList();
-          _currentPowerKw = _history.last.kwh;
+          _currentA = _history.last.currentA;
           _hasData = true;
           notifyListeners();
         }

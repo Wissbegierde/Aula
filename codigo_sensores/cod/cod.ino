@@ -157,7 +157,7 @@ void loop() {
     float humedad = leerAHT20Humedad();
     int mq2Digital = leerMQ2Digital();
     int mq2Analog = leerMQ2Analogico();
-    float potenciaWatts = leerACS712();
+    float corrienteAmps = leerACS712();
     int calidadAire = calcularCalidadAire(mq2Analog);
 
     Serial.println("==================================");
@@ -167,7 +167,7 @@ void loop() {
       ultimoEnvio = ahora;
 
       if (WiFi.status() == WL_CONNECTED) {
-        enviarLectura(temperatura, humedad, mq2Digital == LOW, potenciaWatts, calidadAire);
+        enviarLectura(temperatura, humedad, mq2Digital == LOW, corrienteAmps, calidadAire);
       } else {
         Serial.println("[WIFI] No conectado - reintentando conexion...");
         WiFi.reconnect();
@@ -253,9 +253,7 @@ float leerACS712() {
   float promedio = suma / (float)muestras;
   float voltaje = (promedio / ADC_RES) * VREF;
   float corriente = (voltaje - (ACS712_VCC / 2.0)) / ACS712_SENSITIVITY;
-  float potencia = corriente * 220.0;  // 220V asumido
-
-  if (potencia < 0) potencia = 0;
+  if (corriente < 0) corriente = 0;
 
   Serial.print("[ACS712] ADC: ");
   Serial.print(promedio, 1);
@@ -263,11 +261,9 @@ float leerACS712() {
   Serial.print(voltaje, 3);
   Serial.print(" V  |  Corriente: ");
   Serial.print(corriente, 3);
-  Serial.print(" A  |  Potencia: ");
-  Serial.print(potencia, 1);
-  Serial.println(" W");
+  Serial.println(" A");
 
-  return potencia;
+  return corriente;
 }
 
 // ========================
@@ -486,7 +482,7 @@ bool estaAutorizadoLocal(String uid) {
 // ========================
 // Enviar lectura al backend
 // ========================
-void enviarLectura(float temperatura, float humedad, bool humoDetectado, float potenciaWatts, int calidadAire) {
+void enviarLectura(float temperatura, float humedad, bool humoDetectado, float corrienteAmps, int calidadAire) {
   HTTPClient http;
   String url = String(API_BASE_URL) + "/sensors/reading";
   http.begin(url);
@@ -498,7 +494,7 @@ void enviarLectura(float temperatura, float humedad, bool humoDetectado, float p
   doc["temperature"] = temperatura;
   doc["humidity"] = humedad;
   doc["smoke_detected"] = humoDetectado;
-  doc["power_consumption_watts"] = potenciaWatts;
+  doc["current_a"] = corrienteAmps;
   doc["air_quality_index"] = calidadAire;
   doc["api_key"] = API_KEY;
 

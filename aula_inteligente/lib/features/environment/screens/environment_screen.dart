@@ -102,7 +102,7 @@ class _EnvironmentScreenState extends State<EnvironmentScreen> {
                 ).animate().fadeIn(delay: 150.ms),
                 const SizedBox(height: 12),
                 Text(
-                  'Actualizado: ${DateFormat('HH:mm:ss').format(current.timestamp)}',
+                  'Actualizado: ${DateFormat('HH:mm:ss').format(current.timestamp.toLocal())}',
                   style: Theme.of(context).textTheme.bodySmall,
                   textAlign: TextAlign.center,
                 ),
@@ -216,7 +216,7 @@ class _SensorChart extends StatelessWidget {
                 final i = v.toInt();
                 if (i < 0 || i >= readings.length) return const SizedBox.shrink();
                 return Text(
-                  DateFormat('HH').format(readings[i].time),
+                  DateFormat('HH').format(readings[i].time.toLocal()),
                   style: const TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 10,

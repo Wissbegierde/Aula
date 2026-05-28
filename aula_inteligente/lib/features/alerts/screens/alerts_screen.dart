@@ -122,7 +122,7 @@ class AlertsScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  dateFmt.format(alert.timestamp),
+                                  dateFmt.format(alert.timestamp.toLocal()),
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 const Spacer(),

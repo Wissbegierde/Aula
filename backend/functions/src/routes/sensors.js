@@ -13,7 +13,7 @@ router.post('/reading', authenticateApiKey, async (req, res) => {
       temperature,
       humidity,
       smoke_detected,
-      power_consumption_watts,
+      current_a,
       air_quality_index,
     } = req.body;
 
@@ -26,7 +26,7 @@ router.post('/reading', authenticateApiKey, async (req, res) => {
       temperature: temperature ?? null,
       humidity: humidity ?? null,
       smoke_detected: smoke_detected ?? false,
-      power_consumption_watts: power_consumption_watts ?? null,
+      current_a: current_a ?? null,
       air_quality_index: air_quality_index ?? null,
       timestamp: Timestamp.now(),
     };

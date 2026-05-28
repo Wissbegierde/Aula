@@ -218,7 +218,7 @@ class _AccessTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final time = DateFormat('HH:mm').format(log.timestamp);
+    final time = DateFormat('HH:mm').format(log.timestamp.toLocal());
     return GradientCard(
       child: Row(
         children: [

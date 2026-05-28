@@ -149,7 +149,7 @@ class AccessLogScreen extends StatelessWidget {
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                             Text(
-                              dateFmt.format(log.timestamp),
+                              dateFmt.format(log.timestamp.toLocal()),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: AppColors.textMuted,
                                   ),

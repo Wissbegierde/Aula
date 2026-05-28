@@ -2,7 +2,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
-import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/gradient_card.dart';
@@ -16,13 +15,10 @@ class EnergyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<EnergyProvider>();
     final history = provider.history;
-    final currentKw = provider.currentPowerKw;
-    final todayKwh = provider.todayConsumptionKwh;
-    final monthKwh = provider.monthConsumptionKwh;
-    final usagePercent = provider.hasData ? (todayKwh / 15).clamp(0.0, 1.0) : 0.0;
+    final currentA = provider.currentA;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Consumo Energético')),
+      appBar: AppBar(title: const Text('Corriente Eléctrica')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -30,42 +26,22 @@ class EnergyScreen extends StatelessWidget {
             gradient: AppColors.energyGradient,
             child: Row(
               children: [
-                CircularPercentIndicator(
-                  radius: 48,
-                  lineWidth: 8,
-                  percent: usagePercent,
-                  center: Text(
-                    '${(usagePercent * 100).toInt()}%',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                  progressColor: AppColors.energyColor,
-                  backgroundColor: Colors.white.withAlpha(51),
-                  circularStrokeCap: CircularStrokeCap.round,
-                ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Consumo de hoy',
+                        'Corriente actual',
                         style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
                       Text(
-                        '${todayKwh.toStringAsFixed(1)} kWh',
+                        '${currentA.toStringAsFixed(3)} A',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: 36,
                           fontWeight: FontWeight.w700,
                         ),
-                      ),
-                      Text(
-                        'Potencia actual: ${currentKw.toStringAsFixed(2)} kW',
-                        style: TextStyle(color: Colors.white.withAlpha(179)),
                       ),
                     ],
                   ),
@@ -73,28 +49,6 @@ class EnergyScreen extends StatelessWidget {
               ],
             ),
           ).animate().fadeIn(),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.bolt_rounded,
-                  label: 'Potencia',
-                  value: '${currentKw.toStringAsFixed(2)} kW',
-                  color: AppColors.energyColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.calendar_month_rounded,
-                  label: 'Este mes',
-                  value: '${monthKwh.toStringAsFixed(0)} kWh',
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
-          ).animate().fadeIn(delay: 100.ms),
           const SizedBox(height: 20),
           Text('Histórico (24 h)', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
@@ -105,61 +59,9 @@ class EnergyScreen extends StatelessWidget {
           if (!provider.hasData)
             const Padding(
               padding: EdgeInsets.only(top: 8),
-              child: Text('Sin datos de consumo energético',
+              child: Text('Sin datos de corriente',
                   style: TextStyle(color: AppColors.textMuted)),
             ),
-          const SizedBox(height: 16),
-          GradientCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Dispositivos', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 12),
-                _DeviceRow(name: 'Iluminación LED', power: '0.45 kW', pct: 0.36),
-                _DeviceRow(name: 'Proyector', power: '0.32 kW', pct: 0.26),
-                _DeviceRow(name: 'Aire acondicionado', power: '0.38 kW', pct: 0.31),
-                _DeviceRow(name: 'Otros', power: '0.09 kW', pct: 0.07),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _MetricCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 12),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: color),
-          ),
         ],
       ),
     );
@@ -177,7 +79,7 @@ class _EnergyChart extends StatelessWidget {
       return const Center(child: Text('Sin datos'));
     }
     final spots = history.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.kwh);
+      return FlSpot(e.key.toDouble(), e.value.currentA);
     }).toList();
 
     return BarChart(
@@ -209,7 +111,7 @@ class _EnergyChart extends StatelessWidget {
                 final i = v.toInt();
                 if (i < 0 || i >= history.length) return const SizedBox.shrink();
                 return Text(
-                  DateFormat('HH').format(history[i].time),
+                  DateFormat('HH').format(history[i].time.toLocal()),
                   style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
                 );
               },
@@ -244,41 +146,3 @@ class _EnergyChart extends StatelessWidget {
   }
 }
 
-class _DeviceRow extends StatelessWidget {
-  final String name;
-  final String power;
-  final double pct;
-
-  const _DeviceRow({
-    required this.name,
-    required this.power,
-    required this.pct,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(name, style: Theme.of(context).textTheme.bodyMedium),
-              Text(power, style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-          const SizedBox(height: 6),
-          LinearProgressIndicator(
-            value: pct,
-            backgroundColor: AppColors.cardBorder,
-            color: AppColors.energyColor,
-            borderRadius: BorderRadius.circular(4),
-            minHeight: 6,
-          ),
-        ],
-      ),
-    );
-  }
-}
